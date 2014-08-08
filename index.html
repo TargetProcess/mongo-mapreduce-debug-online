@@ -1,31 +1,164 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <meta charset="utf-8">
-    <title>Debug MongoDB Map/Reduce online</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        .under-construction {
-            width: 350px;
-            height: 350px;
-            border-radius: 350px;
-            background-color: cornflowerblue;
-            text-align: center;
-            vertical-align: middle;
-            color: white;
-            position: fixed;
-            top: 35%;
-            left: 45%;
-        }
-    </style>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Online debugger for MongoDB Map / Reduce functions">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+    <script src="http://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <script src="http://underscorejs.org/underscore.js"></script>
+    <!--<script src="http://api.mongodb.org/js/current/symbols/src/src_mongo_shell_types.js.html"></script>-->
+    <script src="javascripts/src_mongo_shell_types.js"></script>
+    <script src="javascripts/main.js"></script>
+
+    <title>Online debugger for MongoDB Map / Reduce functions</title>
 </head>
+
 <body>
-<div class="under-construction">
-<a href="http://docs.mongodb.org/manual/core/map-reduce/#map-reduce-troubleshooting"
-        style="color:white; font-size: large; margin-top: 160px; display: block">
-    See the theory for a while.
-</a>
+
+<!-- HEADER -->
+<div id="header_wrap" class="outer">
+    <header class="inner">
+
+        <a id="forkme_banner" href="https://github.com/TargetProcess/mongo-mapreduce-debug-online">Alpha</a>
+
+        <!--<h1 id="project_title">Debug MongoDB MapReduce online</h1>-->
+
+        <h2 id="project_tagline">Online debugger for MongoDB Map / Reduce functions</h2>
+
+    </header>
 </div>
+
+<!-- MAIN CONTENT -->
+<div id="main_content_wrap" class="outer">
+
+    <section class="inner">
+
+        <p>
+            Ideas behind MongoDB Map / Reduce troubleshooting see
+            <a target="_blank" href="http://docs.mongodb.org/manual/tutorial/troubleshoot-map-function/">here</a>
+        </p>
+
+        <p>Enter source data below:</p>
+
+<pre id="mr_source" class="i-role-source src-data h-limit" contenteditable="true" placeholder="test">
+[
+    {
+         _id: ObjectId("50a8240b927d5d8b5891743a"),
+         cust_id: "abc123",
+         ord_date: new Date("Oct 04, 2012"),
+         price: 10
+    },
+    {
+         _id: ObjectId("50a8240b927d5d8b5891743b"),
+         cust_id: "abc123",
+         ord_date: new Date("Oct 05, 2012"),
+         price: 20
+    },
+    {
+         _id: ObjectId("50a8240b927d5d8b5891743c"),
+         cust_id: "efj456",
+         ord_date: new Date("Oct 04, 2012"),
+         price: 99,
+    }
+]
+</pre>
+
+        <p>Write your Map / Reduce / Finalize (optional) code:</p>
+
+        <p style="font-size: 12px">For a step-by-step debug - put a "<strong>debugger</strong>" instruction to the code (browser Dev Tool must be opened)</p>
+
+<pre id="mr_code" class="i-role-source src-data" contenteditable="true">
+{
+    map: function() {
+        emit({
+                customer: this.cust_id,
+                month: this.ord_date.getUTCMonth()
+            },
+            this.price);
+    },
+
+    reduce: function(key, values) {
+        return Array.sum(values);
+    },
+
+    finalize: function(key, reduced) {
+        return reduced;
+    }
+}
+</pre>
+
+        <p>See aggregation results here:</p>
+
+<pre id="mr_result" class="src-data h-limit">
+{ _id: 1, value: 22 }
+</pre>
+
+        <p>
+            Questions / Issues? Post a bug to
+            <a href="https://github.com/TargetProcess/mongo-mapreduce-debug-online/issues">GitHub</a>
+            or contact <a href="mailto:vlad.minsky@gmail.com">developer</a> directly.
+        </p>
+
+    </section>
+</div>
+
+<!-- FOOTER  -->
+<div id="footer_wrap" class="outer">
+    <footer class="inner">
+        <p class="copyright">
+            MongoDB MapReduce online debugger maintained by <a href="http://targetprocess.com">TargetProcess</a>
+        </p>
+        <a href="http://www.targetprocess.com/"><img src="http://www.targetprocess.com/img/common/logo-head-new-white.png"></a>
+
+        <!--<p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>-->
+
+    </footer>
+</div>
+
+
+<script>
+
+    $(function() {
+
+        var $body = $('body');
+        var $code = $('#mr_code');
+        var $source = $('#mr_source');
+        var $result = $('#mr_result');
+
+        var onInputChanged = function () {
+
+            markErrorContainer($source, false);
+            markErrorContainer($code, false);
+
+            var src;
+            try {
+                src = __evalExpression__($source.text());
+            }
+            catch (ex) {
+                markErrorContainer($source, true);
+                return printResults($result, ex.message);
+            }
+
+            var fnRun;
+            try {
+                fnRun = eval('run(' + $code.text().trim() + ')');
+            }
+            catch (ex) {
+                markErrorContainer($code, true);
+                return printResults($result, ex.message);
+            }
+
+            var mrRes = fnRun(src);
+            printResults($result, mrRes);
+        };
+
+        $body.on('input', '.i-role-source', _.debounce(onInputChanged, 500));
+
+        onInputChanged();
+    });
+</script>
 </body>
 </html>
